@@ -181,6 +181,20 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
 </div>
 <div id="dataStatus" style="font-size:10px;color:var(--text2);margin-top:6px"></div>
 </div>
+<div class="share-mgmt">
+<h3>🔗 共享管理</h3>
+<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px">
+<button onclick="publishToShared()" style="padding:7px 12px;border-radius:6px;border:none;background:var(--identity-ministry);color:#fff;font-size:12px;cursor:pointer;font-weight:600">📤 发布到共享</button>
+<a href="shared.html" target="_blank" style="padding:7px 12px;border-radius:6px;background:var(--border);color:var(--text);font-size:12px;text-decoration:none;display:inline-block">🔗 共享视图</a>
+</div>
+<div style="margin-top:4px">
+<div style="font-size:11px;color:var(--text2);margin-bottom:4px">授权用户：</div>
+<div id="sharedUsersList" style="font-size:11px;margin-bottom:6px"></div>
+<button onclick="openShareUserForm()" style="font-size:11px;padding:3px 8px;border-radius:4px;border:1px dashed var(--border);background:transparent;color:var(--text2);cursor:pointer">+ 管理用户</button>
+</div>
+<div id="publishStatus" style="font-size:10px;color:var(--text2);margin-top:6px"></div>
+</div>
+
 <div class="stats-panel" id="statsPanel">
 <h3>📊 时间审计</h3>
 <div id="statsContent"><span style="color:var(--text2);font-size:11px">加载中...</span></div>
@@ -1057,12 +1071,77 @@ function setupIdentityFilters(){
   }
 }
 
+// ==================== 共享管理 ====================
+var SHARED_USERS=[];
+
+function loadSharedUsersUI(){
+  try{SHARED_USERS=JSON.parse(localStorage.getItem("yunma_shared_users")||"[]")}catch(e){SHARED_USERS=[]}
+  var el=document.getElementById("sharedUsersList");
+  if(!el) return;
+  if(SHARED_USERS.length===0){el.innerHTML='<span style="color:var(--text2)">暂无授权用户</span>';return}
+  el.innerHTML=SHARED_USERS.map(function(u,i){
+    var ids=(u.identities||[]).map(function(x){return x==="校级"?"校":x==="部级"?"部":x==="院级"?"院":"个"}).join("/");
+    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:2px 0">'+
+      '<span>👤 '+escHtml2(u.name)+' <span style="color:var(--text2)">['+ids+']</span></span>'+
+      '<span style="cursor:pointer;color:var(--danger);font-size:10px" onclick="deleteSharedUser('+i+')">✕</span>'+
+      '</div>';
+  }).join("");
+}
+
+function escHtml2(s){return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}
+
+function openShareUserForm(idx){
+  var u=idx!==undefined?SHARED_USERS[idx]:null;
+  var name=prompt("用户名称（如：王秘书）:",u?u.name:"");
+  if(!name) return;
+  var pw=prompt("登录密码:",u?u.password:"");
+  if(!pw) return;
+  var ids=prompt("可见身份（多选用逗号分隔）：校级,部级,院级,个人",u?(u.identities||[]).join(","):"");
+  if(!ids) return;
+  var idArr=ids.split(",").map(function(s){return s.trim()}).filter(function(s){return s});
+
+  var user={id:name.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g,""),name:name,password:pw,identities:idArr};
+  if(idx!==undefined){SHARED_USERS[idx]=user}else{SHARED_USERS.push(user)}
+  localStorage.setItem("yunma_shared_users",JSON.stringify(SHARED_USERS));
+  loadSharedUsersUI();
+}
+
+function deleteSharedUser(idx){
+  if(!confirm("确认删除用户 "+SHARED_USERS[idx].name+"？")) return;
+  SHARED_USERS.splice(idx,1);
+  localStorage.setItem("yunma_shared_users",JSON.stringify(SHARED_USERS));
+  loadSharedUsersUI();
+}
+
+function publishToShared(){
+  var data=JSON.stringify(EVENTS,null,2);
+  var blob=new Blob([data],{type:"application/json"});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement("a");
+  a.href=url;
+  a.download="events.json";
+  a.click();
+  URL.revokeObjectURL(url);
+
+  var usersData=JSON.stringify({users:SHARED_USERS},null,2);
+  var blob2=new Blob([usersData],{type:"application/json"});
+  var url2=URL.createObjectURL(blob2);
+  var a2=document.createElement("a");
+  a2.href=url2;
+  a2.download="users.json";
+  setTimeout(function(){a2.click();URL.revokeObjectURL(url2)},300);
+
+  var el=document.getElementById("publishStatus");
+  if(el) el.innerHTML='✅ 已导出 events.json 和 users.json<br><span style="font-size:9px">请将文件放入deploy目录并推送到GitHub</span>';
+}
+
 // ==================== 启动 ====================
 loadEvents();
 var now=new Date();
 currentYear=now.getFullYear();currentMonth=now.getMonth();
 selectedDate=dateStr(currentYear,currentMonth,now.getDate());
 setupIdentityFilters();
+loadSharedUsersUI();
 render();
 </script>
 </body>

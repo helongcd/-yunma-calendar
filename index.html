@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>云马日历 · 龙哥日程</title>
 <style>
-:root{--bg:#1a1a2e;--card:#16213e;--text:#e0e0e0;--text2:#a0a0b0;--border:#2a2a4a;--accent:#4da6ff;--meeting:#e74c3c;--teaching:#3498db;--personal:#27ae60;--deadline:#f39c12;--today-ring:#ff6b6b;--holiday:#ff9f43;--lunar:#8a8aaa;--danger:#e74c3c;--save:#27ae60;--identity-vp:#4da6ff;--identity-dean:#27ae60;--identity-personal:#8e44ad;--identity-pill-bg:#1e3050;}
+:root{--bg:#1a1a2e;--card:#16213e;--text:#e0e0e0;--text2:#a0a0b0;--border:#2a2a4a;--accent:#4da6ff;--meeting:#e74c3c;--teaching:#3498db;--personal:#27ae60;--deadline:#f39c12;--today-ring:#ff6b6b;--holiday:#ff9f43;--lunar:#8a8aaa;--danger:#e74c3c;--save:#27ae60;--identity-vp:#4da6ff;--identity-dean:#27ae60;--identity-personal:#8e44ad;--identity-ministry:#f0a500;--identity-pill-bg:#1e3050;}
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
 .header{background:var(--card);border-bottom:1px solid var(--border);padding:16px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
@@ -91,15 +91,17 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
 .identity-btn.active[data-id="副校长"]{background:var(--identity-vp)}
 .identity-btn.active[data-id="院长"]{background:var(--identity-dean)}
 .identity-btn.active[data-id="个人"]{background:var(--identity-personal)}
+.identity-btn.active[data-id="部级"]{background:var(--identity-ministry)}
 .identity-badge{font-size:10px;padding:1px 5px;border-radius:8px;font-weight:500;white-space:nowrap}
 .identity-badge.vp{background:rgba(77,166,255,0.2);color:var(--identity-vp)}
 .identity-badge.dean{background:rgba(39,174,96,0.2);color:var(--identity-dean)}
 .identity-badge.personal{background:rgba(142,68,173,0.2);color:var(--identity-personal)}
+.identity-badge.ministry{background:rgba(240,165,0,0.2);color:var(--identity-ministry)}
 .stats-panel{background:var(--card);border-radius:8px;border:1px solid var(--border);padding:12px;margin-top:12px}
 .stats-panel h3{font-size:14px;color:var(--accent);margin-bottom:8px}
 .stats-row{display:flex;justify-content:space-between;font-size:11px;color:var(--text2);padding:3px 0}
 .stats-bar-wrap{height:6px;background:var(--border);border-radius:3px;margin:2px 0 6px;overflow:hidden;display:flex}
-.stats-bar-vp{background:var(--identity-vp)}.stats-bar-dean{background:var(--identity-dean)}.stats-bar-personal{background:var(--identity-personal)}
+.stats-bar-vp{background:var(--identity-vp)}.stats-bar-dean{background:var(--identity-dean)}.stats-bar-personal{background:var(--identity-personal)}.stats-bar-ministry{background:var(--identity-ministry)}
 .stats-bar-meeting{background:var(--meeting)}.stats-bar-teaching{background:var(--teaching)}.stats-bar-deadline{background:var(--deadline)}
 .data-mgmt{background:var(--card);border-radius:8px;border:1px solid var(--border);padding:12px;margin-top:12px}
 .data-mgmt h3{font-size:14px;color:var(--accent);margin-bottom:8px}
@@ -119,6 +121,7 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
 <div class="identity-filters" id="identityFilters" style="margin:0">
 <button class="identity-btn active" data-id="all" style="border-color:var(--border);color:var(--text)">全部身份</button>
 <button class="identity-btn" data-id="副校长">🏫 校级事务</button>
+<button class="identity-btn" data-id="部级">🏛 部级事务</button>
 <button class="identity-btn" data-id="院长">🎓 院级事务</button>
 <button class="identity-btn" data-id="个人">👤 个人</button>
 </div>
@@ -147,6 +150,7 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
 <div class="identity-filters" id="sidebarIdentityFilters">
 <button class="identity-btn active" data-id="all">全部身份</button>
 <button class="identity-btn" data-id="副校长">🏫 校级事务</button>
+<button class="identity-btn" data-id="部级">🏛 部级事务</button>
 <button class="identity-btn" data-id="院长">🎓 院级事务</button>
 <button class="identity-btn" data-id="个人">👤 个人</button>
 </div></div>
@@ -210,7 +214,7 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
 <div class="form-group"><label>地点</label><input type="text" id="fLocation" placeholder="例如：行政楼301"></div>
 <div class="form-row">
 <div class="form-group"><label>分类</label><select id="fCategory"><option value="会议">🔴 会议</option><option value="教学">🔵 教学</option><option value="个人">🟢 个人</option><option value="截止日">🟡 截止日</option></select></div>
-<div class="form-group"><label>身份</label><select id="fIdentity"><option value="院长">🎓 院级事务</option><option value="副校长">🏫 校级事务</option><option value="个人">👤 个人</option></select></div>
+<div class="form-group"><label>身份</label><select id="fIdentity"><option value="副校长">🏫 校级事务</option><option value="部级">🏛 部级事务</option><option value="院长">🎓 院级事务</option><option value="个人">👤 个人</option></select></div>
 <div class="form-group"><label>重复</label><select id="fRepeat"><option value="">单次</option><option value="daily">每天</option><option value="weekly">每周</option><option value="biweekly">每2周</option><option value="triweekly">每3周</option><option value="quadweekly">每4周</option><option value="monthly">每月</option><option value="yearly">每年</option></select></div>
 </div>
 <div class="form-group"><label>重复截止（可选）</label><input type="date" id="fRepeatUntil" placeholder="不填则无限重复"></div>
@@ -360,7 +364,7 @@ function getMonthEvents(y,m){
 
 // ==================== 日历渲染 ====================
 var CAT_COLORS={会议:"meeting",教学:"teaching",个人:"personal",截止日:"deadline"};
-var IDENTITY_COLORS={"副校长":"vp","院长":"dean","个人":"personal"};
+var IDENTITY_COLORS={"副校长":"vp","部级":"ministry","院长":"dean","个人":"personal"};
 var REPEAT_LABEL={daily:"每天",weekly:"每周",biweekly:"每2周",triweekly:"每3周",quadweekly:"每4周",monthly:"每月",yearly:"每年"};
 var currentYear,currentMonth,selectedDate=null,currentFilter="all",currentIdentityFilter="all";
 var currentDetailIdx=-1,currentDetailDate="";
@@ -463,7 +467,7 @@ function updateSidebar(ds){
       var td=document.createElement("div");td.className="e-time";td.textContent=ts;
       var tt=document.createElement("div");tt.className="e-title";tt.textContent=e.summary;
       if(e.repeat){var rp=document.createElement("span");rp.className="e-repeat";rp.textContent="🔁 "+REPEAT_LABEL[e.repeat];tt.appendChild(rp)}
-      if(e.identity){var ib=document.createElement("span");ib.className="identity-badge "+(IDENTITY_COLORS[e.identity]||"dean");ib.textContent={"副校长":"校","院长":"院","个人":"个"}[e.identity]||"院";ib.style.marginLeft="4px";tt.appendChild(ib)}
+      if(e.identity){var ib=document.createElement("span");ib.className="identity-badge "+(IDENTITY_COLORS[e.identity]||"dean");ib.textContent={"副校长":"校","部级":"部","院长":"院","个人":"个"}[e.identity]||"院";ib.style.marginLeft="4px";tt.appendChild(ib)}
       infoWrap.appendChild(td);infoWrap.appendChild(tt);
       var editBtn=document.createElement("button");editBtn.className="e-del";editBtn.style.background="var(--accent)";editBtn.textContent="✏";
       editBtn.onclick=function(ev){ev.stopPropagation();openForm(target,e,idx);};
@@ -496,7 +500,7 @@ function openDetail(idx,dateStr){
   document.getElementById("dcTime").innerHTML="🕐 "+st.toLocaleString("zh-CN")+" → "+et.toLocaleTimeString("zh-CN");
   document.getElementById("dcLoc").innerHTML=e.location?"📍 "+e.location:"";
   document.getElementById("dcRepeat").innerHTML=e.repeat?"🔁 "+REPEAT_LABEL[e.repeat]:"";
-  var ic=IDENTITY_COLORS[e.identity]||"dean",il={"副校长":"🏫 校级事务","院长":"🎓 院级事务","个人":"👤 个人"};
+  var ic=IDENTITY_COLORS[e.identity]||"dean",il={"副校长":"🏫 校级事务","部级":"🏛 部级事务","院长":"🎓 院级事务","个人":"👤 个人"};
   document.getElementById("dcIdentity").innerHTML='<span class="identity-badge '+ic+'">'+(il[e.identity]||e.identity||"院长")+'</span>';
   document.getElementById("dcDesc").textContent=e.description||"无描述";
   document.getElementById("detailPopup").classList.add("show");
@@ -706,6 +710,7 @@ function extractEvent(text){
 
   // === 身份推断 ===
   if(/党委|班子|校务|办公会|领导|上级|调研|视察|汇报(?!课)/.test(text))r.identity="副校长";
+  else if(/教育部|部委|部里|部级|国家|部颁|司局|行指委|教指委/.test(text))r.identity="部级";
   else if(/教学|课程|专业|实训|实验|学生|教师|教研|培训|讲座|答辩/.test(text))r.identity="院长";
   else r.identity="院长";
   
@@ -973,7 +978,7 @@ function updateStats(){
   var cy=now.getFullYear(),cm=now.getMonth();
 
   // 按身份统计当月
-  var idCount={副校长:0,院长:0,个人:0};
+  var idCount={副校长:0,部级:0,院长:0,个人:0};
   var catCount={会议:0,教学:0,个人:0,截止日:0};
   var totalEvents=0,totalMinutes=0;
 
@@ -1005,13 +1010,13 @@ function updateStats(){
 
   // Identity breakdown
   html+='<div style="margin-top:8px;font-size:11px;color:var(--text2)">按身份：</div>';
-  var ids=["副校长","院长","个人"];
-  var totalId=idCount["副校长"]+idCount["院长"]+idCount["个人"]||1;
+  var ids=["副校长","部级","院长","个人"];
+  var totalId=idCount["副校长"]+idCount["部级"]+idCount["院长"]+idCount["个人"]||1;
   var idBars='<div class="stats-bar-wrap">';
   for(var j=0;j<ids.length;j++){
     var pct=Math.round(idCount[ids[j]]/totalId*100);
-    html+='<div class="stats-row"><span>'+({"副校长":"🏫 校级事务","院长":"🎓 院级事务","个人":"👤 个人"})[ids[j]]+'</span><span>'+idCount[ids[j]]+' ('+pct+'%)</span></div>';
-    if(pct>0)idBars+='<div class="stats-bar-'+({"副校长":"vp","院长":"dean","个人":"personal"})[ids[j]]+'" style="width:'+pct+'%"></div>';
+    html+='<div class="stats-row"><span>'+({"副校长":"🏫 校级事务","部级":"🏛 部级事务","院长":"🎓 院级事务","个人":"👤 个人"})[ids[j]]+'</span><span>'+idCount[ids[j]]+' ('+pct+'%)</span></div>';
+    if(pct>0)idBars+='<div class="stats-bar-'+({"副校长":"vp","部级":"ministry","院长":"dean","个人":"personal"})[ids[j]]+'" style="width:'+pct+'%"></div>';
   }
   idBars+='</div>';
   html+=idBars;

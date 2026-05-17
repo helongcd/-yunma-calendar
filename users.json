@@ -1,21 +1,3 @@
 {
-  "users": [
-    {
-      "id": "wang",
-      "name": "王秘书",
-      "password": "abc123",
-      "identities": [
-        "校级",
-        "部级"
-      ]
-    },
-    {
-      "id": "li",
-      "name": "李老师",
-      "password": "abc123",
-      "identities": [
-        "院级"
-      ]
-    }
-  ]
+  "users": []
 }

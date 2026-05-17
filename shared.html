@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>云马日历 · 共享视图</title>
+<style>
+:root{--bg:#1a1a2e;--card:#16213e;--text:#e0e0e0;--text2:#a0a0b0;--border:#2a2a4a;--accent:#4da6ff;--meeting:#e74c3c;--teaching:#3498db;--personal:#27ae60;--deadline:#f39c12;--today-ring:#ff6b6b;--holiday:#ff9f43;--lunar:#8a8aaa;--danger:#e74c3c;--save:#27ae60;--identity-vp:#4da6ff;--identity-dean:#27ae60;--identity-personal:#8e44ad;--identity-ministry:#f0a500;--identity-pill-bg:#1e3050}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+/* Login */
+.login-wrap{display:flex;align-items:center;justify-content:center;min-height:100vh}
+.login-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:40px;width:380px;text-align:center}
+.login-card h1{font-size:24px;color:var(--accent);margin-bottom:8px}
+.login-card .sub{color:var(--text2);font-size:14px;margin-bottom:24px}
+.login-card select,.login-card input{width:100%;padding:10px 14px;margin-bottom:12px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:15px}
+.login-card select:focus,.login-card input:focus{outline:none;border-color:var(--accent)}
+.login-card button{width:100%;padding:12px;border-radius:8px;border:none;background:var(--accent);color:#fff;font-size:16px;cursor:pointer;font-weight:600}
+.login-card button:hover{opacity:.9}
+.login-err{color:var(--danger);font-size:13px;margin-top:8px;min-height:20px}
+/* Header */
+.header{background:var(--card);border-bottom:1px solid var(--border);padding:12px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.header h1{font-size:18px;color:var(--accent)}
+.user-badge{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text2)}
+.user-badge .name{color:var(--text);font-weight:600}
+.identity-tags{display:flex;gap:4px}
+.identity-tags span{padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600}
+.identity-tags .vp{background:rgba(77,166,255,.2);color:var(--identity-vp)}
+.identity-tags .ministry{background:rgba(240,165,0,.2);color:var(--identity-ministry)}
+.identity-tags .dean{background:rgba(39,174,96,.2);color:var(--identity-dean)}
+.identity-tags .personal{background:rgba(142,68,173,.2);color:var(--identity-personal)}
+.nav{display:flex;align-items:center;gap:8px}
+.nav button{background:var(--border);border:none;color:var(--text);padding:6px 12px;border-radius:6px;cursor:pointer;font-size:13px;transition:.2s}
+.nav button:hover{background:#3a3a5a}
+.nav .month-label{font-size:15px;font-weight:600;min-width:100px;text-align:center}
+.nav .today-btn{background:var(--accent);color:#fff}
+.sync-status{font-size:12px;color:var(--text2);display:flex;align-items:center;gap:4px}
+.sync-dot{width:8px;height:8px;border-radius:50%;background:var(--save)}
+.sync-dot.syncing{background:var(--deadline);animation:pulse 1s infinite}
+.sync-dot.error{background:var(--danger)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+/* Layout */
+.container{max-width:1100px;margin:0 auto;padding:12px;display:grid;grid-template-columns:1fr 280px;gap:12px}
+@media(max-width:768px){.container{grid-template-columns:1fr}}
+/* Calendar */
+.calendar-grid{background:var(--card);border-radius:10px;border:1px solid var(--border);overflow:hidden}
+.weekdays{display:grid;grid-template-columns:repeat(7,1fr);background:#0f3460;padding:6px 0;font-size:12px;color:var(--text2);text-align:center;font-weight:600}
+.days{display:grid;grid-template-columns:repeat(7,1fr)}
+.day-cell{min-height:80px;padding:3px 4px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);cursor:pointer;transition:.15s;position:relative}
+.day-cell:hover{background:rgba(77,166,255,.05)}
+.day-cell.other-month{opacity:.35}
+.day-cell.other-month:hover{opacity:.55}
+.day-cell.today{box-shadow:inset 0 0 0 2px var(--today-ring);border-radius:4px}
+.day-cell.selected{background:rgba(77,166,255,.1)}
+.day-cell .dn{font-size:13px;font-weight:500;margin-bottom:2px}
+.day-cell .ln{font-size:10px;color:var(--lunar)}
+.day-cell .holiday-tag{font-size:9px;color:var(--holiday);display:block}
+.day-cell .evt-dot{display:inline-block;width:6px;height:6px;border-radius:50%;margin:1px 2px 0 0;vertical-align:middle}
+/* Sidebar */
+.sidebar{display:flex;flex-direction:column;gap:10px}
+.sidebar h3{font-size:14px;color:var(--accent);margin-bottom:4px}
+.sidebar .date-label{font-size:16px;font-weight:600}
+.sidebar .events-list{max-height:300px;overflow-y:auto}
+.event-item{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:6px;cursor:pointer;transition:.15s;position:relative}
+.event-item:hover{border-color:var(--accent)}
+.event-item .evt-time{font-size:12px;color:var(--text2)}
+.event-item .evt-summary{font-size:14px;font-weight:600;margin:2px 0}
+.event-item .evt-loc{font-size:11px;color:var(--text2)}
+.identity-badge{display:inline-block;padding:1px 6px;border-radius:8px;font-size:10px;font-weight:600;margin-left:4px}
+.identity-badge.vp{background:rgba(77,166,255,.2);color:var(--identity-vp)}
+.identity-badge.ministry{background:rgba(240,165,0,.2);color:var(--identity-ministry)}
+.identity-badge.dean{background:rgba(39,174,96,.2);color:var(--identity-dean)}
+.identity-badge.personal{background:rgba(142,68,173,.2);color:var(--identity-personal)}
+.no-events{color:var(--text2);font-size:13px;text-align:center;padding:20px}
+.add-btn{width:100%;padding:10px;border-radius:8px;border:1px dashed var(--border);background:transparent;color:var(--accent);font-size:14px;cursor:pointer;transition:.2s}
+.add-btn:hover{background:rgba(77,166,255,.1)}
+/* Form popup */
+.popup-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.6);z-index:100;display:flex;align-items:center;justify-content:center}
+.popup-form{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:24px;width:420px;max-width:95vw}
+.popup-form h3{font-size:16px;color:var(--accent);margin-bottom:14px}
+.popup-form label{display:block;font-size:13px;color:var(--text2);margin-bottom:4px;margin-top:10px}
+.popup-form input,.popup-form select,.popup-form textarea{width:100%;padding:8px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:14px;margin-bottom:4px}
+.popup-form textarea{resize:vertical;min-height:60px}
+.popup-form .btn-row{display:flex;gap:8px;margin-top:14px}
+.popup-form .btn-row button{flex:1;padding:10px;border-radius:6px;border:none;cursor:pointer;font-size:14px;font-weight:600}
+.popup-form .btn-save{background:var(--save);color:#fff}
+.popup-form .btn-delete{background:var(--danger);color:#fff}
+.popup-form .btn-cancel{background:var(--border);color:var(--text)}
+/* Toast */
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--save);color:#fff;padding:10px 24px;border-radius:8px;font-size:14px;z-index:200;opacity:0;transition:opacity .3s}
+.toast.show{opacity:1}
+.toast.err{background:var(--danger)}
+</style>
+</head>
+<body>
+
+<!-- ====== LOGIN SCREEN ====== -->
+<div id="login-screen" class="login-wrap">
+<div class="login-card">
+<h1>☁️ 云马日历</h1>
+<div class="sub">共享视图 · 请登录</div>
+<select id="login-user"><option value="">选择用户...</option></select>
+<input type="password" id="login-pass" placeholder="输入密码" onkeydown="if(event.key==='Enter')doLogin()">
+<button onclick="doLogin()">登 录</button>
+<div id="login-err" class="login-err"></div>
+</div>
+</div>
+
+<!-- ====== CALENDAR VIEW ====== -->
+<div id="calendar-view" style="display:none">
+<div class="header">
+<div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+<h1>☁️ 云马日历 · 共享</h1>
+<div class="user-badge">
+<span>👤</span><span class="name" id="u-name"></span>
+<span style="color:var(--text2)">|</span>
+<div class="identity-tags" id="u-tags"></div>
+</div>
+<div class="sync-status">
+<div class="sync-dot" id="sync-dot"></div>
+<span id="sync-text">就绪</span>
+</div>
+</div>
+<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+<button onclick="logout()" style="background:var(--danger);color:#fff;font-size:12px;padding:4px 10px">退出</button>
+</div>
+</div>
+
+<div class="nav" style="max-width:1100px;margin:0 auto;padding:8px 16px;display:flex;align-items:center;gap:8px">
+<button onclick="prevMonth()">◀</button>
+<span class="month-label" id="month-label"></span>
+<button onclick="nextMonth()">▶</button>
+<button class="today-btn" onclick="goToday()">今天</button>
+<button onclick="syncNow()" style="font-size:12px">🔄 同步</button>
+</div>
+
+<div class="container">
+<div class="calendar-grid">
+<div class="weekdays"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div>
+<div class="days" id="days-grid"></div>
+</div>
+<div class="sidebar">
+<div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px">
+<div class="date-label" id="sidebar-date"></div>
+<div class="events-list" id="sidebar-events"></div>
+</div>
+<button class="add-btn" onclick="openForm(selectedDate)">+ 添加日程</button>
+</div>
+</div>
+</div>
+
+<!-- ====== EVENT FORM POPUP ====== -->
+<div class="popup-overlay" id="popup-overlay" style="display:none" onclick="if(event.target===this)closePopup()">
+<div class="popup-form" id="popup-form">
+<h3 id="popup-title">添加日程</h3>
+<input type="hidden" id="f-idx" value="-1">
+<label>标题 *</label><input id="f-summary" placeholder="事项名称">
+<label>日期</label><input type="date" id="f-date">
+<label>时间</label>
+<div style="display:flex;gap:8px">
+<input type="time" id="f-start" style="flex:1"><span style="color:var(--text2)">至</span><input type="time" id="f-end" style="flex:1">
+</div>
+<label>地点</label><input id="f-location" placeholder="地点">
+<label>类别</label><select id="f-category"><option value="会议">会议</option><option value="教学">教学</option><option value="个人">个人</option><option value="截止日">截止日</option></select>
+<label>身份</label><select id="f-identity"></select>
+<label>备注</label><textarea id="f-description" placeholder="备注信息..."></textarea>
+<div class="btn-row">
+<button class="btn-cancel" onclick="closePopup()">取消</button>
+<button class="btn-save" onclick="saveEvent()">保存</button>
+</div>
+</div>
+</div>
+
+<!-- ====== DETAIL POPUP ====== -->
+<div class="popup-overlay" id="detail-overlay" style="display:none" onclick="if(event.target===this)closeDetail()">
+<div class="popup-form" id="detail-popup"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ==================== GitHub 配置 ====================
+let GITHUB_TOKEN = localStorage.getItem('yunma_shared_token') || '';
+const REPO_OWNER = 'helongcd';
+const REPO_NAME = '-yunma-calendar';
+const EVENTS_FILE = 'events.json';
+const USERS_FILE = 'users.json';
+const BRANCH = 'main';
+
+// ==================== 状态 ====================
+let currentUser = null;
+let events = [];
+let users = [];
+let currentYear, currentMonth, selectedDate;
+let eventsFileSha = null;
+
+// ==================== 农历数据(精简) ====================
+const LUNAR_INFO=[0x04bd8,0x04ae0,0x0a570,0x054d5,0x0d260,0x0d950,0x16554,0x056a0,0x09ad0,0x055d2,0x04ae0,0x0a5b6,0x0a4d0,0x0d250,0x1d255,0x0b540,0x0d6a0,0x0ada2,0x095b0,0x14977,0x04970,0x0a4b0,0x0b4b5,0x06a50,0x06d40,0x1ab54,0x02b60,0x09570,0x052f2,0x04970,0x06566,0x0d4a0,0x0ea50,0x06e95,0x05ad0,0x02b60,0x186e3,0x092e0,0x1c8d7,0x0c950,0x0d4a0,0x1d8a6,0x0b550,0x056a0,0x1a5b4,0x025d0,0x092d0,0x0d2b2,0x0a950,0x0b557,0x06ca0,0x0b550,0x15355,0x04da0,0x0a5b0,0x14573,0x052b0,0x0a9a8,0x0e950,0x06aa0,0x0aea6,0x0ab50,0x04b60,0x0aae4,0x0a570,0x05260,0x0f263,0x0d950,0x05b57,0x056a0,0x096d0,0x04dd5,0x04ad0,0x0a4d0,0x0d4d4,0x0d250,0x0d558,0x0b540,0x0b6a0,0x195a6,0x095b0,0x049b0,0x0a974,0x0a4b0,0x0b27a,0x06a50,0x06d40,0x0af46,0x0ab60,0x09570,0x04af5,0x04970,0x064b0,0x074a3,0x0ea50,0x06b58,0x05ac0,0x0ab60,0x096d5,0x092e0,0x0c960,0x0d954,0x0d4a0,0x0da50,0x07552,0x056a0,0x0abb7,0x025d0,0x092d0,0x0cab5,0x0a950,0x0b4a0,0x0baa4,0x0ad50,0x055d9,0x04ba0,0x0a5b0,0x15176,0x052b0,0x0a930,0x07954,0x06aa0,0x0ad50,0x05b52,0x04b60,0x0a6e6,0x0a4e0,0x0d260,0x0ea65,0x0d530,0x05aa0,0x076a3,0x096d0,0x04afb,0x04ad0,0x0a4d0,0x1d0b6,0x0d250,0x0d520,0x0dd45,0x0b5a0,0x056d0,0x055b2,0x049b0,0x0a577,0x0a4b0,0x0aa50,0x1b255,0x06d20,0x0ada0,0x14b63,0x09370,0x049f8,0x04970,0x064b0,0x168a6,0x0ea50,0x06aa0];
+const LUNAR_MONTH=["正","二","三","四","五","六","七","八","九","十","冬","腊"];
+const LUNAR_DAY=["","初一","初二","初三","初四","初五","初六","初七","初八","初九","初十","十一","十二","十三","十四","十五","十六","十七","十八","十九","二十","廿一","廿二","廿三","廿四","廿五","廿六","廿七","廿八","廿九","三十"];
+const GAN=["甲","乙","丙","丁","戊","己","庚","辛","壬","癸"];
+const ZHI=["子","丑","寅","卯","辰","巳","午","未","申","酉","戌","亥"];
+const SHENGXIAO=["鼠","牛","虎","兔","龙","蛇","马","羊","猴","鸡","狗","猪"];
+
+const HOLIDAYS={"2026-01-01":"元旦","2026-01-28":"除夕","2026-01-29":"春节","2026-01-30":"春节","2026-01-31":"春节","2026-02-01":"春节","2026-02-02":"春节","2026-04-04":"清明","2026-05-01":"劳动节","2026-05-31":"端午","2026-10-01":"国庆","2026-10-02":"国庆","2026-10-03":"国庆","2026-10-04":"国庆","2026-10-05":"国庆","2026-10-06":"国庆","2026-10-07":"国庆","2026-10-08":"中秋"};
+
+function lYearDays(y){var i,sum=348;for(i=0x8000;i>0x8;i>>=1)sum+=(LUNAR_INFO[y-1900]&i)?1:0;return sum+leapDays(y)}
+function leapMonth(y){return LUNAR_INFO[y-1900]&0xf}
+function leapDays(y){return leapMonth(y)?((LUNAR_INFO[y-1900]&0x10000)?30:29):0}
+function monthDays(y,m){return (LUNAR_INFO[y-1900]&(0x10000>>m))?30:29}
+function solarToLunar(y,m,d){
+var offset=(Date.UTC(y,m,d)-Date.UTC(1900,0,31))/86400000;
+var ly,lm,ld,isLeap=false,temp=0;
+for(ly=1900;ly<2101&&offset>0;ly++){temp=lYearDays(ly);offset-=temp}
+if(offset<0){offset+=temp;ly--}
+var leap=leapMonth(ly),isLeapMonth=false;
+for(lm=1;lm<13&&offset>0;lm++){
+if(leap>0&&lm==(leap+1)&&!isLeapMonth){lm--;isLeapMonth=true;temp=leapDays(ly)}else{temp=monthDays(ly,lm)}
+if(isLeapMonth&&lm==(leap+1))isLeapMonth=false;
+offset-=temp;
+}
+if(offset==0&&leap==lm&&isLeapMonth){isLeapMonth=false}
+if(offset<0){offset+=temp;lm--}
+ld=offset+1;
+return{lunarYear:ly,lunarMonth:lm,lunarDay:ld,isLeap:isLeapMonth}
+}
+
+function dateStr(y,m,d){return y+"-"+String(m+1).padStart(2,"0")+"-"+String(d).padStart(2,"0")}
+function parseDate(str){var p=str.split("-");return new Date(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2]))}
+
+function isHoliday(y,m,d){
+var ds=dateStr(y,m,d);
+if(HOLIDAYS[ds])return HOLIDAYS[ds];
+var w=new Date(y,m,d).getDay();
+if(w===0||w===6)return "周末";
+return null;
+}
+
+// ==================== 身份映射 ====================
+const IDENTITY_COLORS = {"副校长":"vp","部级":"ministry","院长":"dean","个人":"personal"};
+const IDENTITY_SHORT = {"副校长":"校","部级":"部","院长":"院","个人":"个"};
+const IDENTITY_ORDER = ["校级","部级","院级","个人"];
+// 显示名称映射
+const IDENTITY_DISPLAY = {"副校长":"校级事务","部级":"部级事务","院长":"院级事务","个人":"个人事务"};
+
+function getIdentityClass(identity){
+return IDENTITY_COLORS[identity]||"dean";
+}
+
+// ==================== GitHub API ====================
+async function githubGet(path){
+const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${path}?ref=${BRANCH}`;
+const headers = {'Authorization': `token ${GITHUB_TOKEN}`, 'Accept': 'application/vnd.github.v3+json'};
+const resp = await fetch(url, {headers});
+if(!resp.ok) throw new Error(`GitHub GET ${path}: ${resp.status}`);
+const data = await resp.json();
+return {
+content: JSON.parse(atob(data.content)),
+sha: data.sha
+};
+}
+
+async function githubPut(path, content, sha, message){
+const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${path}`;
+const body = {
+message: message || '更新日程数据',
+content: btoa(unescape(encodeURIComponent(JSON.stringify(content, null, 2)))),
+sha: sha,
+branch: BRANCH
+};
+const headers = {'Authorization': `token ${GITHUB_TOKEN}`, 'Accept': 'application/vnd.github.v3+json'};
+const resp = await fetch(url, {method: 'PUT', headers, body: JSON.stringify(body)});
+if(!resp.ok){
+const errData = await resp.json().catch(()=>({}));
+throw new Error(`GitHub PUT ${path}: ${resp.status} ${errData.message||''}`);
+}
+const data = await resp.json();
+return data.content.sha;
+}
+
+async function githubGetRaw(path){
+// Try raw URL first (no auth needed, fast)
+const rawUrl = `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/${BRANCH}/${path}`;
+const resp = await fetch(rawUrl);
+if(!resp.ok) throw new Error(`Raw GET ${path}: ${resp.status}`);
+return await resp.json();
+}
+
+// ==================== 登录 ====================
+async function initLogin(){
+try{
+users = await githubGetRaw(USERS_FILE);
+const sel = document.getElementById('login-user');
+sel.innerHTML = '<option value="">选择用户...</option>';
+(users.users||[]).forEach((u,i)=>{
+sel.innerHTML += `<option value="${i}">${u.name}</option>`;
+});
+}catch(e){
+console.error('加载用户列表失败:', e);
+document.getElementById('login-err').textContent = '加载用户列表失败，请检查网络';
+}
+}
+
+function doLogin(){
+const idx = document.getElementById('login-user').value;
+const pass = document.getElementById('login-pass').value;
+const errEl = document.getElementById('login-err');
+if(idx === ''){ errEl.textContent = '请选择用户'; return; }
+const u = users.users[parseInt(idx)];
+if(!u || u.password !== pass){ errEl.textContent = '密码错误'; return; }
+currentUser = u;
+// Save to localStorage for persistence
+localStorage.setItem('yunma_shared_user', JSON.stringify({id: u.id, name: u.name, identities: u.identities}));
+showCalendar();
+}
+
+function logout(){
+currentUser = null;
+events = [];
+localStorage.removeItem('yunma_shared_user');
+document.getElementById('calendar-view').style.display = 'none';
+document.getElementById('login-screen').style.display = 'flex';
+document.getElementById('login-pass').value = '';
+document.getElementById('login-err').textContent = '';
+}
+
+async function showCalendar(){
+document.getElementById('login-screen').style.display = 'none';
+document.getElementById('calendar-view').style.display = 'block';
+document.getElementById('u-name').textContent = currentUser.name;
+// Show identity tags
+const tagsEl = document.getElementById('u-tags');
+tagsEl.innerHTML = currentUser.identities.map(id=>{
+const cls = id==='校级'?'vp':id==='部级'?'ministry':id==='院级'?'dean':'personal';
+const label = id==='校级'?'校级':id==='部级'?'部级':id==='院级'?'院级':'个人';
+return `<span class="${cls}">${label}</span>`;
+}).join('');
+// Populate identity dropdown for form
+const fId = document.getElementById('f-identity');
+fId.innerHTML = currentUser.identities.map(id=>`<option value="${id}">${id==='校级'?'🏫':id==='部级'?'🏛':id==='院级'?'🎓':'👤'} ${id==='校级'?'校级事务':id==='部级'?'部级事务':id==='院级'?'院级事务':'个人事务'}</option>`).join('');
+
+const now = new Date();
+currentYear = now.getFullYear();
+currentMonth = now.getMonth();
+selectedDate = dateStr(currentYear, currentMonth, now.getDate());
+
+await loadEvents();
+render();
+
+// Auto-restore login
+try{
+const saved = JSON.parse(localStorage.getItem('yunma_shared_user'));
+if(saved && saved.id === currentUser.id){
+// Already logged in
+}
+}catch(e){}
+}
+
+// ==================== 数据加载/保存 ====================
+async function loadEvents(){
+try{
+// Try Raw URL first (fast, no auth)
+const result = await githubGetRaw(EVENTS_FILE);
+events = Array.isArray(result) ? result : [];
+// Also get SHA for writes
+try{
+const apiResult = await githubGet(EVENTS_FILE);
+eventsFileSha = apiResult.sha;
+}catch(e){eventsFileSha = null;}
+setSyncStatus('ok', '已同步');
+localStorage.setItem('yunma_shared_events_cache', JSON.stringify(events));
+}catch(e){
+console.error('加载日程失败:', e);
+try{events = JSON.parse(localStorage.getItem('yunma_shared_events_cache')||'[]')}catch(e2){events=[]}
+setSyncStatus('error', '离线(使用缓存)');
+}
+}
+
+async function saveEventsToGitHub(){
+try{
+const newSha = await githubPut(EVENTS_FILE, events, eventsFileSha, '更新共享日程');
+eventsFileSha = newSha;
+// Update local cache
+localStorage.setItem('yunma_shared_events_cache', JSON.stringify(events));
+setSyncStatus('ok', '已保存');
+return true;
+}catch(e){
+console.error('保存失败:', e);
+setSyncStatus('error', '保存失败，请重试');
+showToast('保存失败，请检查网络后重试', true);
+return false;
+}
+}
+
+function setSyncStatus(status, text){
+const dot = document.getElementById('sync-dot');
+const txt = document.getElementById('sync-text');
+dot.className = 'sync-dot';
+if(status === 'syncing') dot.classList.add('syncing');
+if(status === 'error') dot.classList.add('error');
+txt.textContent = text;
+}
+
+async function syncNow(){
+setSyncStatus('syncing', '同步中...');
+await loadEvents();
+render();
+}
+
+// ==================== 事件筛选 ====================
+function getAllowedIdentities(){
+return currentUser ? currentUser.identities : [];
+}
+
+function getEventsForDate(y,m,d){
+var ds = dateStr(y,m,d);
+var result = [];
+var allowed = getAllowedIdentities();
+for(var i=0;i<events.length;i++){
+var evt = events[i];
+// Identity filter
+if(allowed.indexOf(evt.identity)===-1 && evt.identity!==undefined) continue;
+if(evt.start&&evt.start.startsWith(ds)){ result.push(evt); continue; }
+// Check repeat events
+if(evt.repeat&&eventOccursOn(evt,y,m,d)) result.push(evt);
+}
+result.sort(function(a,b){return (a.start||'').localeCompare(b.start||'')});
+return result;
+}
+
+function getMonthEvents(y,m){
+var result = [];
+var allowed = getAllowedIdentities();
+for(var i=0;i<events.length;i++){
+var evt = events[i];
+if(allowed.indexOf(evt.identity)===-1 && evt.identity!==undefined) continue;
+var sd = evt.start ? parseDate(evt.start) : null;
+if(sd&&sd.getFullYear()===y&&sd.getMonth()===m){ result.push(evt); continue; }
+if(evt.repeat){
+var d=new Date(y,m,1);
+while(d.getMonth()===m){
+if(eventOccursOn(evt,d.getFullYear(),d.getMonth(),d.getDate())){result.push(evt);break;}
+d.setDate(d.getDate()+1);
+}
+}
+}
+return result;
+}
+
+function eventOccursOn(evt,y,m,d){
+if(!evt.repeat||!evt.start) return false;
+var sd=parseDate(evt.start);
+var td=new Date(y,m,d);
+if(td<sd) return false;
+if(evt.repeatUntil){
+var ru=parseDate(evt.repeatUntil);
+if(td>ru) return false;
+}
+switch(evt.repeat){
+case "每天": return true;
+case "每周": return td.getDay()===sd.getDay();
+case "每两周": var diff=Math.floor((td-sd)/86400000); return diff>=0&&diff%14===0;
+case "每月": return td.getDate()===sd.getDate();
+case "每年": return td.getMonth()===sd.getMonth()&&td.getDate()===sd.getDate();
+case "每周一至周五":
+var w=td.getDay(); return w>=1&&w<=5;
+default: return false;
+}
+}
+
+// ==================== 渲染 ====================
+function render(){
+var y=currentYear, m=currentMonth;
+document.getElementById('month-label').textContent = y+'年'+(m+1)+'月';
+
+var firstDay = new Date(y,m,1).getDay();
+firstDay = firstDay===0?6:firstDay-1;
+var daysInMonth = new Date(y,m+1,0).getDate();
+var daysInPrev = new Date(y,m,0).getDate();
+
+var html='';
+// Previous month days
+for(var i=firstDay-1;i>=0;i--){
+var d=daysInPrev-i;
+html+=createCell(d,m-1,y,'other-month',null);
+}
+// Current month
+for(var d=1;d<=daysInMonth;d++){
+var ds=dateStr(y,m,d);
+var dayEvts=getEventsForDate(y,m,d);
+var cls='';
+if(ds===selectedDate) cls+=' selected';
+var today=new Date();
+if(y===today.getFullYear()&&m===today.getMonth()&&d===today.getDate()) cls+=' today';
+html+=createCell(d,m,y,cls,ds);
+}
+// Next month
+var remaining=42-(firstDay+daysInMonth);
+if(remaining<0) remaining+=7;
+for(var d=1;d<=remaining;d++){
+html+=createCell(d,m+1,y,'other-month',null);
+}
+
+document.getElementById('days-grid').innerHTML=html;
+updateSidebar(selectedDate);
+}
+
+function createCell(d,pm,py,cls,ds){
+var lunar=solarToLunar(py<0?py+1:py,pm<0?pm+12:pm,d);
+var lunarStr='';
+if(lunar.lunarDay===1) lunarStr=(lunar.isLeap?'闰':'')+LUNAR_MONTH[lunar.lunarMonth-1]+'月';
+else lunarStr=LUNAR_DAY[lunar.lunarDay];
+var hol=isHoliday(py<0?py+1:py,pm<0?pm+12:pm,d);
+
+// Fix year/month for other-month
+var ry=py,rm=pm;
+if(pm<0){ry=py-1;rm=11;}
+if(pm>11){ry=py+1;rm=0;}
+var dsFixed = dateStr(ry,rm,d);
+
+var cellCls='day-cell'+(cls?' '+cls:'');
+var html='<div class="'+cellCls+'" onclick="selectDate('+ry+','+rm+','+d+')">';
+html+='<div class="dn">'+d+'</div>';
+html+='<div class="ln">'+lunarStr+'</div>';
+if(hol&&hol!=='周末') html+='<span class="holiday-tag">'+hol+'</span>';
+
+// Event dots
+var evts = dsFixed ? getEventsForDate(ry,rm,d) : [];
+for(var i=0;i<Math.min(evts.length,3);i++){
+var catColor={'会议':'var(--meeting)','教学':'var(--teaching)','个人':'var(--personal)','截止日':'var(--deadline)'}[evts[i].category]||'var(--accent)';
+html+='<span class="evt-dot" style="background:'+catColor+'"></span>';
+}
+if(evts.length>3) html+='<span style="font-size:9px;color:var(--text2)">+'+evts.length+'</span>';
+
+html+='</div>';
+return html;
+}
+
+function selectDate(y,m,d){
+selectedDate=dateStr(y,m,d);
+render();
+}
+
+function updateSidebar(ds){
+var p=ds.split('-');
+var y=parseInt(p[0]),m=parseInt(p[1])-1,d=parseInt(p[2]);
+var lunar=solarToLunar(y,m,d);
+var lunarLabel=(lunar.isLeap?'闰':'')+LUNAR_MONTH[lunar.lunarMonth-1]+'月'+LUNAR_DAY[lunar.lunarDay];
+var hol=isHoliday(y,m,d);
+
+document.getElementById('sidebar-date').innerHTML=
+'📅 '+y+'年'+(m+1)+'月'+d+'日'+
+' <span style="font-size:12px;color:var(--lunar)">'+lunarLabel+'</span>'+
+(hol?' <span style="font-size:12px;color:var(--holiday)">'+hol+'</span>':'');
+
+var evts=getEventsForDate(y,m,d);
+var html='';
+if(evts.length===0){
+html='<div class="no-events">暂无日程</div>';
+}else{
+for(var i=0;i<evts.length;i++){
+var evt=evts[i];
+var idClass=getIdentityClass(evt.identity||'院长');
+var idShort=IDENTITY_SHORT[evt.identity]||'院';
+var timeStr='';
+if(evt.start){
+var t=evt.start.indexOf('T');
+if(t>0) timeStr=evt.start.substring(t+1,t+6);
+if(evt.end&&evt.end.indexOf('T')>0) timeStr+=' - '+evt.end.substring(evt.end.indexOf('T')+1,evt.end.indexOf('T')+6);
+}
+html+='<div class="event-item" onclick="openDetail('+i+','+y+','+m+','+d+')">';
+html+='<span class="identity-badge '+idClass+'">'+idShort+'</span>';
+html+='<div class="evt-summary">'+escHtml(evt.summary||'')+'</div>';
+if(timeStr) html+='<div class="evt-time">🕐 '+timeStr+'</div>';
+if(evt.location) html+='<div class="evt-loc">📍 '+escHtml(evt.location)+'</div>';
+html+='</div>';
+}
+}
+document.getElementById('sidebar-events').innerHTML=html;
+}
+
+function escHtml(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+
+// ==================== 导航 ====================
+function prevMonth(){currentMonth--;if(currentMonth<0){currentMonth=11;currentYear--;}selectedDate=dateStr(currentYear,currentMonth,1);render()}
+function nextMonth(){currentMonth++;if(currentMonth>11){currentMonth=0;currentYear++;}selectedDate=dateStr(currentYear,currentMonth,1);render()}
+function goToday(){var n=new Date();currentYear=n.getFullYear();currentMonth=n.getMonth();selectedDate=dateStr(currentYear,currentMonth,n.getDate());render()}
+
+// ==================== 事件表单 ====================
+function openForm(ds,existingEvent,existingIdx){
+var popup=document.getElementById('popup-overlay');
+document.getElementById('popup-title').textContent=existingEvent?'编辑日程':'添加日程';
+document.getElementById('f-idx').value=existingIdx!==undefined?existingIdx:-1;
+document.getElementById('f-date').value=ds;
+document.getElementById('f-summary').value=existingEvent?existingEvent.summary:'';
+document.getElementById('f-location').value=existingEvent?existingEvent.location||'':'';
+document.getElementById('f-category').value=existingEvent?existingEvent.category||'会议':'会议';
+document.getElementById('f-description').value=existingEvent?existingEvent.description||'':'';
+
+if(existingEvent&&existingEvent.start){
+var t=existingEvent.start.indexOf('T');
+if(t>0){
+document.getElementById('f-start').value=existingEvent.start.substring(t+1,t+6);
+}
+if(existingEvent.end&&existingEvent.end.indexOf('T')>0){
+document.getElementById('f-end').value=existingEvent.end.substring(existingEvent.end.indexOf('T')+1,existingEvent.end.indexOf('T')+6);
+}else{
+document.getElementById('f-end').value='';
+}
+}else{
+document.getElementById('f-start').value='09:00';
+document.getElementById('f-end').value='10:00';
+}
+
+// Set identity
+var fId=document.getElementById('f-identity');
+if(existingEvent&&existingEvent.identity){
+fId.value=existingEvent.identity;
+}else{
+fId.value=currentUser.identities[0]||'院级';
+}
+
+popup.style.display='flex';
+}
+
+function closePopup(){
+document.getElementById('popup-overlay').style.display='none';
+}
+
+async function saveEvent(){
+var summary=document.getElementById('f-summary').value.trim();
+if(!summary){showToast('请输入标题',true);return;}
+
+var ds=document.getElementById('f-date').value;
+var startTime=document.getElementById('f-start').value;
+var endTime=document.getElementById('f-end').value;
+var location=document.getElementById('f-location').value.trim();
+var category=document.getElementById('f-category').value;
+var identity=document.getElementById('f-identity').value;
+var description=document.getElementById('f-description').value.trim();
+var idx=parseInt(document.getElementById('f-idx').value);
+
+var evt={
+summary:summary,
+start:ds+'T'+startTime,
+end:ds+'T'+(endTime||startTime),
+location:location,
+category:category,
+identity:identity,
+description:description,
+repeat:'',
+repeatUntil:''
+};
+
+if(!GITHUB_TOKEN){
+showToast('未配置写入令牌，只能查看不能编辑。请联系龙哥获取令牌。',true);
+return;
+}
+if(idx>=0){
+// Edit existing - find the real index in events array
+var dsParts=ds.split('-');
+var y=parseInt(dsParts[0]),m=parseInt(dsParts[1])-1,d=parseInt(dsParts[2]);
+var dayEvts=getEventsForDate(y,m,d);
+if(idx<dayEvts.length){
+var realEvt=dayEvts[idx];
+var realIdx=events.indexOf(realEvt);
+if(realIdx>=0){
+events[realIdx]=evt;
+}
+}
+}else{
+events.push(evt);
+}
+
+closePopup();
+setSyncStatus('syncing','保存中...');
+await saveEventsToGitHub();
+render();
+showToast('已保存');
+}
+
+// ==================== 详情弹窗 ====================
+function openDetail(dayIdx,y,m,d){
+var evts=getEventsForDate(y,m,d);
+if(dayIdx>=evts.length) return;
+var evt=evts[dayIdx];
+var popup=document.getElementById('detail-overlay');
+var content=document.getElementById('detail-popup');
+var idClass=getIdentityClass(evt.identity||'院长');
+var idName=IDENTITY_DISPLAY[evt.identity]||evt.identity||'院级事务';
+
+var timeStr='';
+if(evt.start){
+var t=evt.start.indexOf('T');
+if(t>0) timeStr=evt.start.substring(t+1,t+6);
+if(evt.end&&evt.end.indexOf('T')>0) timeStr+=' - '+evt.end.substring(evt.end.indexOf('T')+1,evt.end.indexOf('T')+6);
+}
+
+content.innerHTML=
+'<h3><span class="identity-badge '+idClass+'">'+idName+'</span> '+escHtml(evt.summary||'')+'</h3>'+
+'<label>时间</label><div style="color:var(--text2)">'+dateStr(y,m,d)+' '+timeStr+'</div>'+
+(evt.location?'<label>地点</label><div style="color:var(--text2)">'+escHtml(evt.location)+'</div>':'')+
+'<label>类别</label><div style="color:var(--text2)">'+(evt.category||'')+'</div>'+
+(evt.description?'<label>备注</label><div style="color:var(--text2)">'+escHtml(evt.description)+'</div>':'')+
+'<div class="btn-row">'+
+'<button class="btn-cancel" onclick="closeDetail()">关闭</button>'+
+'<button class="btn-save" onclick="editFromDetail('+dayIdx+','+y+','+m+','+d+')">编辑</button>'+
+'</div>';
+popup.style.display='flex';
+}
+
+function closeDetail(){
+document.getElementById('detail-overlay').style.display='none';
+}
+
+function editFromDetail(dayIdx,y,m,d){
+closeDetail();
+var evts=getEventsForDate(y,m,d);
+if(dayIdx<evts.length){
+openForm(dateStr(y,m,d),evts[dayIdx],dayIdx);
+}
+}
+
+// ==================== Toast ====================
+var toastTimer;
+function showToast(msg,isError){
+var el=document.getElementById('toast');
+el.textContent=msg;
+el.className='toast'+(isError?' err':'')+' show';
+clearTimeout(toastTimer);
+toastTimer=setTimeout(function(){el.className='toast'},2000);
+}
+
+// ==================== 热键 ====================
+document.addEventListener('keydown',function(e){
+if(e.key==='Escape'){
+closePopup();
+closeDetail();
+}
+});
+
+// ==================== 启动 ====================
+// Check for auto-login from localStorage
+(function(){
+try{
+var saved=JSON.parse(localStorage.getItem('yunma_shared_user'));
+if(saved){
+// Quick restore: need to reload users for verification
+initLogin().then(()=>{
+// Find user
+var found = (users.users||[]).find(u=>u.id===saved.id&&u.name===saved.name);
+if(found){
+currentUser = found;
+showCalendar();
+}
+});
+return;
+}
+}catch(e){}
+initLogin();
+})();
+</script>
+
+</body>
+</html>

@@ -177,7 +177,9 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
 <div style="display:flex;flex-wrap:wrap;gap:4px">
 <button class="data-btn export" onclick="exportData()">📥 导出JSON</button>
 <button class="data-btn" onclick="document.getElementById('importFile').click()">📤 导入JSON</button>
+<button class="data-btn" onclick="document.getElementById('icsFile').click()">📱 导入ICS</button>
 <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
+<input type="file" id="icsFile" accept=".ics" style="display:none" onchange="importICS(event)">
 </div>
 <div id="dataStatus" style="font-size:10px;color:var(--text2);margin-top:6px"></div>
 </div>
@@ -986,6 +988,70 @@ function importData(event){
 }
 
 // ==================== 时间审计 ====================
+
+function importICS(event){
+  var file=event.target.files[0];if(!file)return;
+  var reader=new FileReader();
+  reader.onload=function(e){
+    var text=e.target.result;
+    var events=[];
+    // Parse ICS VEVENT blocks
+    var blocks=text.split("BEGIN:VEVENT");
+    for(var i=1;i<blocks.length;i++){
+      var block=blocks[i].split("END:VEVENT")[0];
+      var evt={summary:"",start:"",end:"",location:"",description:"",category:"个人",identity:"",repeat:"",repeatUntil:""};
+      var lines=block.split("\n");
+      for(var j=0;j<lines.length;j++){
+        var line=lines[j].trim();
+        if(line.startsWith("DTSTART")){
+          var v=line.split(":")[1]||"";
+          if(v.length>=8){
+            var y=v.substring(0,4),m=v.substring(4,6),d=v.substring(6,8);
+            var t="09:00";
+            if(v.length>=13) t=v.substring(9,11)+":"+v.substring(11,13);
+            evt.start=y+"-"+m+"-"+d+"T"+t;
+          }
+        }else if(line.startsWith("DTEND")){
+          var v=line.split(":")[1]||"";
+          if(v.length>=13) evt.end=v.substring(0,4)+"-"+v.substring(4,6)+"-"+v.substring(6,8)+"T"+v.substring(9,11)+":"+v.substring(11,13);
+        }else if(line.startsWith("SUMMARY:")){
+          evt.summary=line.substring(8).replace(/\\,/g,",").replace(/\\;/g,";").replace(/\\n/g,"\n");
+        }else if(line.startsWith("LOCATION:")){
+          evt.location=line.substring(9).replace(/\\,/g,",").replace(/\\;/g,";");
+        }else if(line.startsWith("DESCRIPTION:")){
+          evt.description=line.substring(12).replace(/\\,/g,",").replace(/\\n/g,"\n");
+        }else if(line.startsWith("CATEGORIES:")){
+          evt.category=line.substring(11);
+        }
+      }
+      if(evt.summary&&evt.start) events.push(evt);
+    }
+    if(events.length===0){alert("未找到有效日程。请确认文件是ICS格式。");return}
+    // Ask for default identity
+    var idMap={"1":"校级","2":"部级","3":"院级","4":"个人"};
+    var defId=prompt("发现 "+events.length+" 条日程。\n请选择默认身份：\n1=校级  2=部级  3=院级  4=个人\n（导入后可逐个修改）","3");
+    var ident=idMap[defId]||"院级";
+    // Ask for import mode
+    var mode=confirm("导入模式：\n确定=替换全部  取消=追加到现有日程");
+    if(mode) EVENTS=[];
+    for(var k=0;k<events.length;k++){
+      events[k].identity=ident;
+      // Try smart identity inference
+      var txt=events[k].summary+(events[k].description||"");
+      if(txt.indexOf("党委")>=0||txt.indexOf("校务")>=0||txt.indexOf("领导")>=0) events[k].identity="校级";
+      else if(txt.indexOf("教育部")>=0||txt.indexOf("部委")>=0||txt.indexOf("司局")>=0) events[k].identity="部级";
+      else if(txt.indexOf("教学")>=0||txt.indexOf("课程")>=0||txt.indexOf("实训")>=0||txt.indexOf("学生")>=0) events[k].identity="院级";
+      else if(txt.indexOf("个人")>=0||txt.indexOf("家庭")>=0) events[k].identity="个人";
+      else events[k].identity=ident;
+      EVENTS.push(events[k]);
+    }
+    saveEvents();render();
+    var st=document.getElementById("dataStatus");
+    if(st) st.innerHTML="✅ 已导入 "+events.length+" 条("+ident+")";
+    alert("✅ 成功导入 "+events.length+" 条日程！（默认身份："+ident+"）");
+  };
+  reader.readAsText(file,"utf-8");
+}
 function updateStats(){
   var st=document.getElementById("statsContent");
   var now=new Date();

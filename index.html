@@ -1179,26 +1179,58 @@ function deleteSharedUser(idx){
   loadSharedUsersUI();
 }
 
+// GitHub API 辅助函数
+var GIT_TOKEN=localStorage.getItem("yunma_git_token")||"";
+var GIT_REPO="helongcd/-yunma-calendar";
+
+function gitApi(path,method,body){
+  var url="https://api.github.com/repos/"+GIT_REPO+"/contents/"+path;
+  var headers={"Authorization":"token "+GIT_TOKEN,"Accept":"application/vnd.github.v3+json"};
+  var opts={method:method,headers:headers};
+  if(body){opts.body=JSON.stringify(body)}
+  return fetch(url,opts).then(function(r){return r.json().then(function(d){return{ok:r.ok,status:r.status,data:d}})})}
+
 function publishToShared(){
-  var data=JSON.stringify(EVENTS,null,2);
-  var blob=new Blob([data],{type:"application/json"});
-  var url=URL.createObjectURL(blob);
-  var a=document.createElement("a");
-  a.href=url;
-  a.download="events.json";
-  a.click();
-  URL.revokeObjectURL(url);
-
-  var usersData=JSON.stringify({users:SHARED_USERS},null,2);
-  var blob2=new Blob([usersData],{type:"application/json"});
-  var url2=URL.createObjectURL(blob2);
-  var a2=document.createElement("a");
-  a2.href=url2;
-  a2.download="users.json";
-  setTimeout(function(){a2.click();URL.revokeObjectURL(url2)},300);
-
   var el=document.getElementById("publishStatus");
-  if(el) el.innerHTML='✅ 已导出 events.json 和 users.json<br><span style="font-size:9px">请将文件放入deploy目录并推送到GitHub</span>';
+  if(!GIT_TOKEN){
+    var tok=prompt("首次同步需要GitHub令牌：\n\n请输入令牌（龙哥提供）\n留空则切换为手动下载模式");
+    if(tok&&tok.trim()){GIT_TOKEN=tok.trim();localStorage.setItem("yunma_git_token",GIT_TOKEN)}
+    else{
+      // Fallback: manual download
+      var data=JSON.stringify(EVENTS,null,2);
+      var blob=new Blob([data],{type:"application/json"});
+      var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="events.json";a.click();
+      var ud=JSON.stringify({users:SHARED_USERS},null,2);
+      var b2=new Blob([ud],{type:"application/json"});
+      var a2=document.createElement("a");a2.href=URL.createObjectURL(b2);a2.download="users.json";
+      setTimeout(function(){a2.click()},300);
+      if(el)el.innerHTML='⬇️ 已下载文件，请放入deploy目录并推送';
+      return;
+    }
+  }
+  if(el){el.innerHTML='⏳ 正在同步到云端...';el.style.color='var(--deadline)'}
+
+  // Upload events.json
+  gitApi("events.json","GET").then(function(r){
+    var sha=r.ok&&r.data.sha?r.data.sha:null;
+    var content=btoa(unescape(encodeURIComponent(JSON.stringify(EVENTS,null,2))));
+    return gitApi("events.json","PUT",{message:"同步日程",content:content,sha:sha,branch:"main"})
+  }).then(function(r){
+    if(!r.ok) throw new Error("events上传失败: "+r.status);
+    // Upload users.json
+    return gitApi("users.json","GET");
+  }).then(function(r){
+    var sha=r.ok&&r.data.sha?r.data.sha:null;
+    var content=btoa(unescape(encodeURIComponent(JSON.stringify({users:SHARED_USERS},null,2))));
+    return gitApi("users.json","PUT",{message:"同步用户",content:content,sha:sha,branch:"main"})
+  }).then(function(r){
+    if(!r.ok) throw new Error("users上传失败: "+r.status);
+    if(el){el.innerHTML='✅ 已同步到云端！手机刷新即可看到';el.style.color='var(--save)'}
+    setTimeout(function(){if(el)el.innerHTML=''},5000);
+  }).catch(function(e){
+    console.error(e);
+    if(el){el.innerHTML='❌ 同步失败: '+e.message;el.style.color='var(--danger)'}
+  });
 }
 
 // ==================== 启动 ====================

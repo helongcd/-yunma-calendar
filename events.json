@@ -1,16 +1,5 @@
 [
   {
-    "summary": "云马日程系统上线",
-    "start": "2026-05-17T09:00",
-    "end": "2026-05-17T09:30",
-    "location": "办公室",
-    "category": "会议",
-    "description": "首次使用云马日程系统",
-    "repeat": "",
-    "repeatUntil": "",
-    "identity": "个人"
-  },
-  {
     "summary": "E2E测试-智能制造研讨会",
     "start": "2026-05-19T09:00",
     "end": "2026-05-19T11:00",
@@ -20,5 +9,16 @@
     "repeat": "",
     "repeatUntil": "",
     "identity": "校级"
+  },
+  {
+    "summary": "E2E测试-手机端添加的周报",
+    "start": "2026-05-20T14:00",
+    "end": "2026-05-20T15:00",
+    "location": "办公室",
+    "category": "个人",
+    "description": "手机端测试",
+    "repeat": "",
+    "repeatUntil": "",
+    "identity": "个人"
   }
 ]

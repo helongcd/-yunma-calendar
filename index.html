@@ -118,8 +118,8 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
 <button class="today-btn" onclick="goToday()">今天</button>
 <div class="identity-filters" id="identityFilters" style="margin:0">
 <button class="identity-btn active" data-id="all" style="border-color:var(--border);color:var(--text)">全部身份</button>
-<button class="identity-btn" data-id="副校长">🏫 副校长</button>
-<button class="identity-btn" data-id="院长">🎓 院长</button>
+<button class="identity-btn" data-id="副校长">🏫 校级事务</button>
+<button class="identity-btn" data-id="院长">🎓 院级事务</button>
 <button class="identity-btn" data-id="个人">👤 个人</button>
 </div>
 </div>
@@ -146,8 +146,8 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
 <div><h3>🏛 身份</h3>
 <div class="identity-filters" id="sidebarIdentityFilters">
 <button class="identity-btn active" data-id="all">全部身份</button>
-<button class="identity-btn" data-id="副校长">🏫 副校长</button>
-<button class="identity-btn" data-id="院长">🎓 院长</button>
+<button class="identity-btn" data-id="副校长">🏫 校级事务</button>
+<button class="identity-btn" data-id="院长">🎓 院级事务</button>
 <button class="identity-btn" data-id="个人">👤 个人</button>
 </div></div>
 <div><h3>📋 筛选</h3>
@@ -210,7 +210,7 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
 <div class="form-group"><label>地点</label><input type="text" id="fLocation" placeholder="例如：行政楼301"></div>
 <div class="form-row">
 <div class="form-group"><label>分类</label><select id="fCategory"><option value="会议">🔴 会议</option><option value="教学">🔵 教学</option><option value="个人">🟢 个人</option><option value="截止日">🟡 截止日</option></select></div>
-<div class="form-group"><label>身份</label><select id="fIdentity"><option value="院长">🎓 院长</option><option value="副校长">🏫 副校长</option><option value="个人">👤 个人</option></select></div>
+<div class="form-group"><label>身份</label><select id="fIdentity"><option value="院长">🎓 院级事务</option><option value="副校长">🏫 校级事务</option><option value="个人">👤 个人</option></select></div>
 <div class="form-group"><label>重复</label><select id="fRepeat"><option value="">单次</option><option value="daily">每天</option><option value="weekly">每周</option><option value="biweekly">每2周</option><option value="triweekly">每3周</option><option value="quadweekly">每4周</option><option value="monthly">每月</option><option value="yearly">每年</option></select></div>
 </div>
 <div class="form-group"><label>重复截止（可选）</label><input type="date" id="fRepeatUntil" placeholder="不填则无限重复"></div>
@@ -463,7 +463,7 @@ function updateSidebar(ds){
       var td=document.createElement("div");td.className="e-time";td.textContent=ts;
       var tt=document.createElement("div");tt.className="e-title";tt.textContent=e.summary;
       if(e.repeat){var rp=document.createElement("span");rp.className="e-repeat";rp.textContent="🔁 "+REPEAT_LABEL[e.repeat];tt.appendChild(rp)}
-      if(e.identity){var ib=document.createElement("span");ib.className="identity-badge "+(IDENTITY_COLORS[e.identity]||"dean");ib.textContent={"副校长":"副","院长":"院","个人":"个"}[e.identity]||"院";ib.style.marginLeft="4px";tt.appendChild(ib)}
+      if(e.identity){var ib=document.createElement("span");ib.className="identity-badge "+(IDENTITY_COLORS[e.identity]||"dean");ib.textContent={"副校长":"校","院长":"院","个人":"个"}[e.identity]||"院";ib.style.marginLeft="4px";tt.appendChild(ib)}
       infoWrap.appendChild(td);infoWrap.appendChild(tt);
       var editBtn=document.createElement("button");editBtn.className="e-del";editBtn.style.background="var(--accent)";editBtn.textContent="✏";
       editBtn.onclick=function(ev){ev.stopPropagation();openForm(target,e,idx);};
@@ -496,7 +496,7 @@ function openDetail(idx,dateStr){
   document.getElementById("dcTime").innerHTML="🕐 "+st.toLocaleString("zh-CN")+" → "+et.toLocaleTimeString("zh-CN");
   document.getElementById("dcLoc").innerHTML=e.location?"📍 "+e.location:"";
   document.getElementById("dcRepeat").innerHTML=e.repeat?"🔁 "+REPEAT_LABEL[e.repeat]:"";
-  var ic=IDENTITY_COLORS[e.identity]||"dean",il={"副校长":"🏫 副校长","院长":"🎓 院长","个人":"👤 个人"};
+  var ic=IDENTITY_COLORS[e.identity]||"dean",il={"副校长":"🏫 校级事务","院长":"🎓 院级事务","个人":"👤 个人"};
   document.getElementById("dcIdentity").innerHTML='<span class="identity-badge '+ic+'">'+(il[e.identity]||e.identity||"院长")+'</span>';
   document.getElementById("dcDesc").textContent=e.description||"无描述";
   document.getElementById("detailPopup").classList.add("show");
@@ -1010,7 +1010,7 @@ function updateStats(){
   var idBars='<div class="stats-bar-wrap">';
   for(var j=0;j<ids.length;j++){
     var pct=Math.round(idCount[ids[j]]/totalId*100);
-    html+='<div class="stats-row"><span>'+({"副校长":"🏫 副校长","院长":"🎓 院长","个人":"👤 个人"})[ids[j]]+'</span><span>'+idCount[ids[j]]+' ('+pct+'%)</span></div>';
+    html+='<div class="stats-row"><span>'+({"副校长":"🏫 校级事务","院长":"🎓 院级事务","个人":"👤 个人"})[ids[j]]+'</span><span>'+idCount[ids[j]]+' ('+pct+'%)</span></div>';
     if(pct>0)idBars+='<div class="stats-bar-'+({"副校长":"vp","院长":"dean","个人":"personal"})[ids[j]]+'" style="width:'+pct+'%"></div>';
   }
   idBars+='</div>';

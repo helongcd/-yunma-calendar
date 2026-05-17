@@ -709,23 +709,45 @@ function handleFileUpload(event){
     });
   }else if(ext==="pdf"){
     preview.style.display="block";
-    preview.innerHTML="<span style='color:var(--accent)'>⏳ 正在解析PDF文档...</span>";
+    preview.innerHTML="<span style='color:var(--accent)'>⏳ 正在解析PDF...</span>";
     loadLib("https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js","pdfjs",function(){
       pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
       var reader=new FileReader();
       reader.onload=function(e){
-        var loadingTask=pdfjsLib.getDocument({data:e.target.result});
-        loadingTask.promise.then(function(pdf){
-          var texts=[],pages=Math.min(pdf.numPages,20);
-          var promises=[];
+        pdfjsLib.getDocument({data:e.target.result}).promise.then(function(pdf){
+          var texts=[],pages=Math.min(pdf.numPages,20),promises=[];
           for(var i=1;i<=pages;i++){
             promises.push(pdf.getPage(i).then(function(page){
               return page.getTextContent().then(function(tc){
-                texts.push(tc.items.map(function(it){return it.str}).join(" "));
+                return tc.items.map(function(it){return it.str}).join(" ");
               });
             }));
           }
-          Promise.all(promises).then(function(){appendText(texts.join("\n"))}).catch(function(err){alert("PDF解析失败: "+err.message);preview.style.display="none"});
+          Promise.all(promises).then(function(pageTexts){
+            var allText=pageTexts.join("\n").trim();
+            if(allText.length<50){
+              // 扫描版PDF，切OCR
+              preview.innerHTML="<span style='color:var(--accent)'>⏳ 扫描版PDF，正在OCR识别...</span>";
+              loadLib("https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js","tesseract",function(){
+                var ocrPromises=[],ocrTexts=[];
+                for(var i=1;i<=pages;i++){
+                  (function(pn){
+                    ocrPromises.push(pdf.getPage(pn).then(function(page){
+                      var canvas=document.createElement("canvas");
+                      var vp=page.getViewport({scale:2.0});
+                      canvas.width=vp.width;canvas.height=vp.height;
+                      return page.render({canvasContext:canvas.getContext("2d"),viewport:vp}).promise.then(function(){
+                        return Tesseract.recognize(canvas,"chi_sim").then(function(r){ocrTexts[pn-1]=r.data.text});
+                      });
+                    }));
+                  })(i);
+                }
+                Promise.all(ocrPromises).then(function(){appendText(ocrTexts.join("\n"))}).catch(function(err){alert("OCR失败: "+err.message);preview.style.display="none"});
+              });
+            }else{
+              appendText(allText);
+            }
+          }).catch(function(err){alert("PDF解析失败: "+err.message);preview.style.display="none"});
         }).catch(function(err){alert("PDF加载失败: "+err.message);preview.style.display="none"});
       };
       reader.readAsArrayBuffer(file);

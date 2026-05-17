@@ -110,7 +110,7 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
 <h3 style="margin-bottom:8px">🤖 智能添加</h3>
 <textarea id="smartInput" placeholder="输入文字，或上传文件自动解析...&#10;&#10;例如：5月20日下午3点行政楼301开教学研讨会，每周一次" style="width:100%;height:60px;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:12px;font-family:inherit;resize:vertical"></textarea>
 <div style="display:flex;gap:4px;margin-top:6px">
-<input type="file" id="smartFile" accept=".txt,.md,.docx,.pdf" style="display:none" onchange="handleFileUpload(event)">
+<input type="file" id="smartFile" accept=".txt,.md,.docx,.pdf,.jpg,.jpeg,.png,.bmp,.webp" style="display:none" onchange="handleFileUpload(event)">
 <button onclick="document.getElementById('smartFile').click()" style="flex:1;padding:6px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text2);cursor:pointer;font-size:12px">📎 上传文件</button>
 <button onclick="smartParse()" style="flex:1;padding:6px;border-radius:6px;border:none;background:var(--accent);color:#fff;cursor:pointer;font-size:12px;font-weight:600">🔍 解析</button>
 </div>
@@ -729,6 +729,12 @@ function handleFileUpload(event){
         }).catch(function(err){alert("PDF加载失败: "+err.message);preview.style.display="none"});
       };
       reader.readAsArrayBuffer(file);
+    });
+  } else if(["jpg","jpeg","png","bmp","webp"].indexOf(ext)>=0){
+    preview.style.display="block";
+    preview.innerHTML="<span style='color:var(--accent)'>⏳ 正在OCR识别图片（首次下载中文包约10MB）...</span>";
+    loadLib("https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js","tesseract",function(){
+      Tesseract.recognize(file,"chi_sim",{logger:function(m){if(m.status==="recognizing text")preview.innerHTML="<span style='color:var(--accent)'>⏳ 识别中..."+Math.round(m.progress*100)+"%</span>"}}).then(function(r){appendText(r.data.text)}).catch(function(err){alert("OCR失败: "+err.message);preview.style.display="none"});
     });
   }
   

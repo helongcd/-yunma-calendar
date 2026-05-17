@@ -187,6 +187,7 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
 <h3>🔗 共享管理</h3>
 <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px">
 <button onclick="publishToShared()" style="padding:7px 12px;border-radius:6px;border:none;background:var(--identity-ministry);color:#fff;font-size:12px;cursor:pointer;font-weight:600">📤 发布到共享</button>
+<button onclick="syncFromGitHub()" style="padding:7px 12px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text);font-size:12px;cursor:pointer">🔄 同步</button>
 <a href="shared.html" target="_blank" style="padding:7px 12px;border-radius:6px;background:var(--border);color:var(--text);font-size:12px;text-decoration:none;display:inline-block">🔗 共享视图</a>
 </div>
 <div style="margin-top:4px">
@@ -258,12 +259,69 @@ var EVENTS=[];
 var DEFAULT_EVENTS=[{summary:"云马日程系统上线",start:"2026-05-17T09:00",end:"2026-05-17T09:30",location:"办公室",category:"会议",description:"首次使用云马日程系统",repeat:"",repeatUntil:"",identity:"个人"}];
 
 function loadEvents(){
+  // 1. 先加载本地数据
   try{var d=localStorage.getItem("yunma_events");if(d){EVENTS=JSON.parse(d);
     for(var i=0;i<EVENTS.length;i++){if(!EVENTS[i].identity)EVENTS[i].identity="院长";}
-    return;}}catch(e){}
-  EVENTS=JSON.parse(JSON.stringify(DEFAULT_EVENTS));
+  }}catch(e){}
+  if(!EVENTS||EVENTS.length===0){EVENTS=JSON.parse(JSON.stringify(DEFAULT_EVENTS));}
+  // 2. 静默从GitHub拉取（无需token，用Raw URL）
+  if(GIT_TOKEN){
+    var rawUrl="https://raw.githubusercontent.com/"+GIT_REPO+"/main/events.json";
+    fetch(rawUrl,{cache:"no-store"}).then(function(r){return r.json()}).then(function(remote){
+      if(!Array.isArray(remote)||remote.length===0) return;
+      // 合并远程事件
+      var mergedMap={};
+      for(var i=0;i<EVENTS.length;i++){
+        var k=(EVENTS[i].summary||'')+'|'+(EVENTS[i].start||'');
+        mergedMap[k]=EVENTS[i];
+      }
+      for(var i=0;i<remote.length;i++){
+        var k=(remote[i].summary||'')+'|'+(remote[i].start||'');
+        mergedMap[k]=remote[i]; // 远程覆盖本地
+      }
+      EVENTS=Object.values(mergedMap);
+      saveEvents();
+      render();
+    }).catch(function(e){console.log('启动同步跳过:',e.message)});
+  }
 }
 function saveEvents(){try{localStorage.setItem("yunma_events",JSON.stringify(EVENTS))}catch(e){}}
+function saveAndPublish(){
+  saveEvents();
+  // 如果已配置token，自动同步到云端
+  if(GIT_TOKEN){
+    var el=document.getElementById("publishStatus");
+    if(el){el.innerHTML='⏳ 自动同步中...';el.style.color='var(--text2)'}
+    // 先拉取远程合并，再推送
+    var rawUrl="https://raw.githubusercontent.com/"+GIT_REPO+"/main/events.json";
+    fetch(rawUrl,{cache:"no-store"}).then(function(r){return r.json()}).catch(function(){return []}).then(function(remote){
+      // 合并当前事件到远程
+      var mergedMap={};
+      if(Array.isArray(remote)){
+        for(var i=0;i<remote.length;i++){
+          var k=(remote[i].summary||'')+'|'+(remote[i].start||'');
+          mergedMap[k]=remote[i];
+        }
+      }
+      for(var i=0;i<EVENTS.length;i++){
+        var k=(EVENTS[i].summary||'')+'|'+(EVENTS[i].start||'');
+        mergedMap[k]=EVENTS[i];
+      }
+      var merged=Object.values(mergedMap);
+      // 推送
+      return gitApi("events.json","GET").then(function(r){
+        var sha=r.ok&&r.data.sha?r.data.sha:null;
+        var cnt=btoa(unescape(encodeURIComponent(JSON.stringify(merged,null,2))));
+        return gitApi("events.json","PUT",{message:"自动同步日程",content:cnt,sha:sha,branch:"main"});
+      });
+    }).then(function(r){
+      if(r&&r.ok&&el){el.innerHTML='✅ 已自动同步';el.style.color='var(--save)';setTimeout(function(){el.innerHTML=''},3000)}
+    }).catch(function(e){
+      console.error('自动同步失败:',e);
+      if(el){el.innerHTML='⚠️ 本地已保存，云端同步失败';el.style.color='var(--deadline)';setTimeout(function(){el.innerHTML=''},5000)}
+    });
+  }
+}
 
 // ==================== 农历模块 ====================
 var LUNAR_INFO=[0x04bd8,0x04ae0,0x0a570,0x054d5,0x0d260,0x0d950,0x16554,0x056a0,0x09ad0,0x055d2,0x04ae0,0x0a5b6,0x0a4d0,0x0d250,0x1d255,0x0b540,0x0d6a0,0x0ada2,0x095b0,0x14977,0x04970,0x0a4b0,0x0b4b5,0x06a50,0x06d40,0x1ab54,0x02b60,0x09570,0x052f2,0x04970,0x06566,0x0d4a0,0x0ea50,0x06e95,0x05ad0,0x02b60,0x186e3,0x092e0,0x1c8d7,0x0c950,0x0d4a0,0x1d8a6,0x0b550,0x056a0,0x1a5b4,0x025d0,0x092d0,0x0d2b2,0x0a950,0x0b557,0x06ca0,0x0b550,0x15355,0x04da0,0x0a5b0,0x14573,0x052b0,0x0a9a8,0x0e950,0x06aa0,0x0aea6,0x0ab50,0x04b60,0x0aae4,0x0a570,0x05260,0x0f263,0x0d950,0x05b57,0x056a0,0x096d0,0x04dd5,0x04ad0,0x0a4d0,0x0d4d4,0x0d250,0x0d558,0x0b540,0x0b6a0,0x195a6,0x095b0,0x049b0,0x0a974,0x0a4b0,0x0b27a,0x06a50,0x06d40,0x0af46,0x0ab60,0x09570,0x04af5,0x04970,0x064b0,0x074a3,0x0ea50,0x06b58,0x055c0,0x0ab60,0x096d5,0x092e0,0x0c960,0x0d954,0x0d4a0,0x0da50,0x07552,0x056a0,0x0abb7,0x025d0,0x092d0,0x0cab5,0x0a950,0x0b4a0,0x0baa4,0x0ad50,0x055d9,0x04ba0,0x0a5b0,0x15176,0x052b0,0x0a930,0x07954,0x06aa0,0x0ad50,0x05b52,0x04b60,0x0a6e6,0x0a4e0,0x0d260,0x0ea65,0x0d530,0x05aa0,0x076a3,0x096d0,0x04afb,0x04ad0,0x0a4d0,0x1d0b6,0x0d250,0x0d520,0x0dd45,0x0b5a0,0x056d0,0x055b2,0x049b0,0x0a577,0x0a4b0,0x0aa50,0x1b255,0x06d20,0x0ada0,0x14b63,0x09370,0x049f8,0x04970,0x064b0,0x168a6,0x0ea50,0x06aa0,0x1a6c4,0x0aae0,0x092e0,0x0d2e3,0x0c960,0x0d557,0x0d4a0,0x0da50,0x05d55,0x056a0,0x0a6d0,0x055d4,0x052d0,0x0a9b8,0x0a950,0x0b4a0,0x0b6a6,0x0ad50,0x055a0,0x0aba4,0x0a5b0,0x052b0,0x0b273,0x06930,0x07337,0x06aa0,0x0ad50,0x14b55,0x04b60,0x0a570,0x054e4,0x0d160,0x0e968,0x0d520,0x0daa0,0x16aa6,0x056d0,0x04ae0,0x0a9d4,0x0a4d0,0x0d150,0x0f252,0x0d520];
@@ -548,7 +606,7 @@ function confirmDelEvent(idx,dateStr){
 function confirmDelete(){
   if(deleteTargetIdx>=0){
     EVENTS.splice(deleteTargetIdx,1);
-    saveEvents();selectedDate=null;render();
+    saveAndPublish();selectedDate=null;render();
   }
   closePopup("deleteConfirm");deleteTargetIdx=-1;
 }
@@ -616,7 +674,7 @@ function saveEvent(){
   }else{
     EVENTS.push(evt);
   }
-  saveEvents();
+  saveAndPublish();
   closePopup("formPopup");
   var dp=document.getElementById("fDateBase").value;
   if(dp){var p=dp.split("-");selectDate(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2]));}
@@ -894,7 +952,7 @@ function confirmSmartAdd(){
     repeatUntil:r.repeatUntil||""
   };
   EVENTS.push(evt);
-  saveEvents();
+  saveAndPublish();
   
   // 选中该日期
   var p=ds.split("-");
@@ -975,7 +1033,7 @@ function importData(event){
         }
         document.getElementById("dataStatus").innerHTML="✅ 追加了 "+added+" 条新事件（跳过 "+(data.length-added)+" 条重复）";
       }
-      saveEvents();
+      saveAndPublish();
       render();
       if(merge)document.getElementById("dataStatus").innerHTML="✅ 已导入 "+data.length+" 条事件";
       setTimeout(function(){document.getElementById("dataStatus").innerHTML="";},3000);
@@ -1045,7 +1103,7 @@ function importICS(event){
       else events[k].identity=ident;
       EVENTS.push(events[k]);
     }
-    saveEvents();render();
+    saveAndPublish();render();
     var st=document.getElementById("dataStatus");
     if(st) st.innerHTML="✅ 已导入 "+events.length+" 条("+ident+")";
     alert("✅ 成功导入 "+events.length+" 条日程！（默认身份："+ident+"）");
@@ -1189,6 +1247,50 @@ function gitApi(path,method,body){
   var opts={method:method,headers:headers};
   if(body){opts.body=JSON.stringify(body)}
   return fetch(url,opts).then(function(r){return r.json().then(function(d){return{ok:r.ok,status:r.status,data:d}})})}
+
+// 从GitHub拉取事件并合并到本地
+function syncFromGitHub(silent){
+  var el=document.getElementById("publishStatus");
+  if(!GIT_TOKEN){
+    var tok=prompt("同步需要GitHub令牌：\n\n请输入令牌\n留空则取消");
+    if(tok&&tok.trim()){GIT_TOKEN=tok.trim();localStorage.setItem("yunma_git_token",GIT_TOKEN)}
+    else return;
+  }
+  if(el&&!silent){el.innerHTML='⬇️ 正在从云端同步...';el.style.color='var(--deadline)'}
+
+  // 从GitHub Raw URL快速拉取（无需认证）
+  var rawUrl="https://raw.githubusercontent.com/"+GIT_REPO+"/main/events.json";
+  fetch(rawUrl,{cache:"no-store"}).then(function(r){
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    return r.json();
+  }).then(function(remote){
+    if(!Array.isArray(remote)||remote.length===0){
+      if(el&&!silent){el.innerHTML='☁️ 云端暂无数据';el.style.color='var(--text2)';setTimeout(function(){el.innerHTML=''},3000)}
+      return;
+    }
+    // 合并策略：远程为准 + 本地独有事件保留
+    var merged=[];
+    var seen={};
+    // 先加远程事件
+    for(var i=0;i<remote.length;i++){
+      var key=(remote[i].summary||'')+'|'+(remote[i].start||'');
+      seen[key]=true;
+      merged.push(remote[i]);
+    }
+    // 再加本地独有事件
+    for(var i=0;i<EVENTS.length;i++){
+      var key=(EVENTS[i].summary||'')+'|'+(EVENTS[i].start||'');
+      if(!seen[key]) merged.push(EVENTS[i]);
+    }
+    EVENTS=merged;
+    saveEvents();
+    if(el&&!silent){el.innerHTML='✅ 同步完成！共'+merged.length+'条事件';el.style.color='var(--save)';setTimeout(function(){el.innerHTML=''},3000)}
+    render();
+  }).catch(function(e){
+    console.error(e);
+    if(el&&!silent){el.innerHTML='❌ 同步失败: '+e.message;el.style.color='var(--danger)';setTimeout(function(){el.innerHTML=''},5000)}
+  });
+}
 
 function publishToShared(){
   var el=document.getElementById("publishStatus");
